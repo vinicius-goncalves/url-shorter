@@ -23,21 +23,7 @@ const server = http.createServer(async (request, response) => {
         
             if(url.match(/\/link\/[0-9]/g)) {
                 const id = url.split('/')[2]
-                const urlFound = await SQLConnection.getURLByLastPath(Number(id))
-
-                if(!urlFound) {
-                    response.writeHead(404, { 'Content-Type': 'application/json' })
-                    response.write(JSON.stringify({ message: 'Link not found on our database. Try again.' }))
-                    response.end()
-                    return
-                }
-
-                const { full_url } = urlFound
-                console.log(full_url)
-
-                response.writeHead(301, { Location: full_url })
-                response.end()
-
+                URLControllers.getURLByLastPath(id, response)
                 break
             }
         default:

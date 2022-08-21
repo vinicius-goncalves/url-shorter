@@ -48,6 +48,17 @@
                 text-align: center;
             }
             
+            input[type="button"] {
+                width: 75%;
+                background-color: black;
+                color: white;
+                font-weight: bold;
+                cursor: pointer;
+            }
+
+            input[type="button"]:active {
+                transform: scale(.95);
+            }
 
         </style>
     </head>
@@ -60,6 +71,7 @@
                     <th>ID</th>
                     <th>Original Link</th>
                     <th>Shorted Link</th>
+                    <th>Options</th>
                 </tr>
             </table>
         </section>
@@ -74,6 +86,7 @@
                 .then(data => {
                     data.forEach(urlShorted => {
                         const { id } = urlShorted
+
                         const newTr = document.createElement('tr')
                         
                         const entries = Object.entries(urlShorted)
@@ -85,24 +98,37 @@
                             }
 
                             const newTd = document.createElement('td')
+
                             if(value.match(/https?/g)) {
 
                                 const a = document.createElement('a')
                                 a.setAttribute('href', value)
-                                // a.setAttribute('target', '_blank')
+                                a.setAttribute('target', '_blank')
                                 a.setAttribute('data-id', id)
                                 a.setAttribute('data-type', property === 'full_url' ? 'full_url' : 'shorter_url')
                                 a.textContent = value
-
-                                newTd.append(a)
+                                
+                                newTd.appendChild(a)
                                 newTr.append(newTd)
-
                                 return
                             }
 
                             newTd.textContent = value
-                            newTr.append(newTd)
+                            newTr.appendChild(newTd)
                         })
+
+                        const newTd = document.createElement('td')
+
+                        const action = document.createElement('input')
+                        action.setAttribute('type', 'button')
+                        action.setAttribute('value', 'Copy Link')
+                        action.addEventListener('click', () => {
+                            const { shorter_url } = urlShorted
+                            navigator.clipboard.writeText(shorter_url)
+                        })
+
+                        newTd.append(action)
+                        newTr.appendChild(newTd)
 
                         tableWrapper.append(newTr)
 

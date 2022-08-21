@@ -18,7 +18,7 @@ const getAllURLs = async (response) => {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*' 
         })
-        response.write(JSON.stringify({ message: 'An error has occurred when tried to get all products.' }))
+        response.write(JSON.stringify({ message: 'An error has occurred when tried to get all URLs.' }))
         response.end()
     }
 }
@@ -34,7 +34,7 @@ const getURLByID = async (id, response) => {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
             })
-            response.write(JSON.stringify({ message: 'Product searched by ID has not been found.' }))
+            response.write(JSON.stringify({ message: 'URL searched by ID has not been found.' }))
             response.end()
             return
         }
@@ -53,7 +53,32 @@ const getURLByID = async (id, response) => {
     }
 }
 
+const getURLByLastPath = async (id, response) => {
+
+    try {
+
+        const urlFound = await SQLConnection.getURLByLastPath(Number(id))
+
+        if(!urlFound) {
+            response.writeHead(404, { 'Content-Type': 'application/json' })
+            response.write(JSON.stringify({ message: 'Link not found on our database. Try again.' }))
+            response.end()
+            return
+        }
+    
+        const { full_url } = urlFound
+        response.writeHead(301, { Location: full_url })
+        response.end()
+
+    } catch (error) {
+        response.writeHead(400, { 'Content-Type': 'application/json' })
+        response.write(JSON.stringify({ message: 'An error has occurred when tried to get the URL by ID path' }))
+        response.end()
+    }
+}
+
 module.exports = {
     getAllURLs,
-    getURLByID
+    getURLByID,
+    getURLByLastPath
 }
