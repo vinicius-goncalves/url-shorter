@@ -1,0 +1,19 @@
+{
+  "name": "url-shorter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon index",
+    "start": "node index"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "dotenv": "^16.0.1",
+    "mysql2": "^2.3.3",
+    "nodemon": "^2.0.19"
+  }
+}

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>URL Shorter</title>
+        <style>
+            * {
+                box-sizing: border-box;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 17px;
+            }
+
+            h1 {
+                font-size: 2rem;
+                text-align: center;
+                text-decoration: wavy underline black;
+                user-select: none;
+            }
+
+            table {
+                width: 100%;
+            }
+
+            table, td, th {
+                border-collapse: collapse;
+                border: 1px solid black;
+            }
+
+            .table-header {
+                background-color: #b9b9b9;
+            }
+        
+            a {
+                color: black;
+                text-decoration: none;
+            }
+
+            a:hover {
+                color: red;
+            }
+
+            :is(th) {
+                font-size: 2rem;
+            }
+
+            :is(td) {
+                padding: 10px;
+                font-size: 1.3rem;
+                text-align: center;
+            }
+            
+
+        </style>
+    </head>
+    <body>
+
+        <h1>URLs</h1>
+        <section class="urls-wrapper">
+            <table data-js="table-wrapper">
+                <tr class="table-header">
+                    <th>ID</th>
+                    <th>Original Link</th>
+                    <th>Shorted Link</th>
+                </tr>
+            </table>
+        </section>
+        <script type="text/javascript">
+
+            const tableWrapper = document.querySelector('[data-js="table-wrapper"]')
+            
+            const BASE_URL = 'http://localhost:8080'
+
+            fetch(`${BASE_URL}/api/urls`)
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(urlShorted => {
+                        const { id } = urlShorted
+                        const newTr = document.createElement('tr')
+                        
+                        const entries = Object.entries(urlShorted)
+                        entries.forEach(pair => {
+                            const [ property, value ] = pair
+
+                            if(property === 'sql_id') {
+                                return
+                            }
+
+                            const newTd = document.createElement('td')
+                            if(value.match(/https?/g)) {
+
+                                const a = document.createElement('a')
+                                a.setAttribute('href', value)
+                                // a.setAttribute('target', '_blank')
+                                a.setAttribute('data-id', id)
+                                a.setAttribute('data-type', property === 'full_url' ? 'full_url' : 'shorter_url')
+                                a.textContent = value
+
+                                newTd.append(a)
+                                newTr.append(newTd)
+
+                                return
+                            }
+
+                            newTd.textContent = value
+                            newTr.append(newTd)
+                        })
+
+                        tableWrapper.append(newTr)
+
+                    })
+                })
+
+            tableWrapper.addEventListener('click', event => {
+                const targetClicked = event.target
+                const { type,id } = targetClicked.dataset
+                
+                switch(type) {
+                    case 'full_url':
+                        window.location.replace(targetClicked.getAttribute('href'))
+                        break
+                    case 'shorter_url':
+                        fetch(`${BASE_URL}/api/urls/${id}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log(data)
+                                const { full_url } = data
+                                window.location.replace(full_url)
+                            })
+                        break
+                }
+            })
+        </script>
+    </body>
+</html>
