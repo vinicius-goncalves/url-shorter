@@ -1,159 +1,344 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>URL Shorter</title>
-        <style>
-            * {
-                box-sizing: border-box;
-                font-family: Arial, Helvetica, sans-serif;
-                font-size: 17px;
-            }
 
-            h1 {
-                font-size: 2rem;
-                text-align: center;
-                text-decoration: wavy underline black;
-                user-select: none;
-            }
+<head>
+    <title>URL Shorter</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 17px;
+        }
 
-            table {
-                width: 100%;
-            }
+        h1 {
+            font-size: 2rem;
+            text-align: center;
+            text-decoration: wavy underline black;
+            user-select: none;
+        }
 
-            table, td, th {
-                border-collapse: collapse;
-                border: 1px solid black;
-            }
+        .buttons-wrapper {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
 
-            .table-header {
-                background-color: #b9b9b9;
-            }
+        .buttons-wrapper input {
+            margin: 10px;
+            width: 75%;
+            padding: 10px;
+            font-size: 1.2rem;
+        }
+
+        .buttons-wrapper input[type="button"] {
+            width: 25%;
+            padding: 15px;
+        }
+
+        select {
+            padding: 10px;
+            margin: 10px;
+        }
+
+        table {
+            width: 100%;
+        }
+
+        th {
+            padding: 10px;
+        }
+
+        table,
+        td,
+        th {
+            border-collapse: collapse;
+            border: 1px solid black;
+        }
+
+        .table-header {
+            background-color: #b9b9b9;
+        }
+
+        a {
+            color: black;
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: red;
+        }
+
+        :is(th) {
+            font-size: 2rem;
+        }
+
+        :is(td) {
+            padding: 10px;
+            font-size: 1.3rem;
+            text-align: center;
+        }
+
+        input[type="button"] {
+            width: 75%;
+            background-color: black;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        input[type="button"]:active {
+            transform: scale(.95);
+        }
+
+        input[type="button"]:hover {
+            background-color: #313131;
+        }
+
+        .prevAndNextResultsWrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .prevAndNextResultsWrapper input {
+            margin: 10px;
+            width: 25%;
+            padding: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>URLs</h1>
+    <section class="buttons-wrapper">
+        <input type="text" data-js="url-to-shorted" placeholder="Input the URL here"
+            value="https://www.youtube.com/user/funkyblackcat" />
+        <input type="button" data-js="create-new-shorted-url" value="Shorter now" />
+        <select data-js="results-per-page">
+            <optgroup>
+                <option disabled selected>Show how many per page?</option>
+                <option value="3">3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+            </optgroup>
+        </select>
+    </section>
+    <section class="urls-wrapper">
+        <table data-js="table-wrapper">
+            <tr class="table-header">
+                <th>ID</th>
+                <th>Original Link</th>
+                <th>Shorted Link</th>
+                <th>Options</th>
+            </tr>
+        </table>
+    </section>
+    <section class="prevAndNextResultsWrapper">
+        <input type="button" value="Previous" data-button-navigator="previous-results">
+        <input type="button" value="Next" data-button-navigator="next-results">
+    </section>
+    <script type="text/javascript">
+
+        const BASE_URL = 'http://localhost:8080'
+
+        const tableWrapper = document.querySelector('[data-js="table-wrapper"]')
+        const createNewShortedURLButton = document.querySelector('[data-js="create-new-shorted-url"]')
+        const urlToShorted = document.querySelector('[data-js="url-to-shorted"]')
         
-            a {
-                color: black;
-                text-decoration: none;
-            }
+        const prevAndNextButtonsWrapper = document.querySelector('.prevAndNextResultsWrapper')
+        const prevAndNextButtons = document.querySelectorAll('[data-button-navigator]')
+        const resultsPerPageSelect = document.querySelector('[data-js="results-per-page"]')
 
-            a:hover {
-                color: red;
-            }
-
-            :is(th) {
-                font-size: 2rem;
-            }
-
-            :is(td) {
-                padding: 10px;
-                font-size: 1.3rem;
-                text-align: center;
-            }
-            
-            input[type="button"] {
-                width: 75%;
-                background-color: black;
-                color: white;
-                font-weight: bold;
-                cursor: pointer;
-            }
-
-            input[type="button"]:active {
-                transform: scale(.95);
-            }
-
-        </style>
-    </head>
-    <body>
-
-        <h1>URLs</h1>
-        <section class="urls-wrapper">
-            <table data-js="table-wrapper">
-                <tr class="table-header">
-                    <th>ID</th>
-                    <th>Original Link</th>
-                    <th>Shorted Link</th>
-                    <th>Options</th>
-                </tr>
-            </table>
-        </section>
-        <script type="text/javascript">
-
-            const tableWrapper = document.querySelector('[data-js="table-wrapper"]')
-            
-            const BASE_URL = 'http://localhost:8080'
-
-            fetch(`${BASE_URL}/api/urls`)
-                .then(response => response.json())
-                .then(data => {
-                    data.forEach(urlShorted => {
-                        const { id } = urlShorted
-
-                        const newTr = document.createElement('tr')
-                        
-                        const entries = Object.entries(urlShorted)
-                        entries.forEach(pair => {
-                            const [ property, value ] = pair
-
-                            if(property === 'sql_id') {
-                                return
-                            }
-
-                            const newTd = document.createElement('td')
-
-                            if(value.match(/https?/g)) {
-
-                                const a = document.createElement('a')
-                                a.setAttribute('href', value)
-                                a.setAttribute('target', '_blank')
-                                a.setAttribute('data-id', id)
-                                a.setAttribute('data-type', property === 'full_url' ? 'full_url' : 'shorter_url')
-                                a.textContent = value
-                                
-                                newTd.appendChild(a)
-                                newTr.append(newTd)
-                                return
-                            }
-
-                            newTd.textContent = value
-                            newTr.appendChild(newTd)
-                        })
-
-                        const newTd = document.createElement('td')
-
-                        const action = document.createElement('input')
-                        action.setAttribute('type', 'button')
-                        action.setAttribute('value', 'Copy Link')
-                        action.addEventListener('click', () => {
-                            const { shorter_url } = urlShorted
-                            navigator.clipboard.writeText(shorter_url)
-                        })
-
-                        newTd.append(action)
-                        newTr.appendChild(newTd)
-
-                        tableWrapper.append(newTr)
-
-                    })
+        createNewShortedURLButton.addEventListener('click', () => {
+            const urlValue = urlToShorted.value
+            fetch(`${BASE_URL}/api/urls/new`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    newURL: urlValue
                 })
+            }).then(response => response.json())
+                .then(result => console.log(result))
+        })
 
-            tableWrapper.addEventListener('click', event => {
-                const targetClicked = event.target
-                const { type,id } = targetClicked.dataset
-                
-                switch(type) {
-                    case 'full_url':
-                        window.location.replace(targetClicked.getAttribute('href'))
-                        break
-                    case 'shorter_url':
-                        fetch(`${BASE_URL}/api/urls/${id}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                console.log(data)
-                                const { full_url } = data
-                                window.location.replace(full_url)
-                            })
-                        break
+
+        const defineElement = (elementObject, appendWhere = document.body) => {
+
+            const entries = Object.entries(elementObject)[0]
+            const [element, options] = entries
+
+            const newElement = document.createElement(element)
+            const values = Object.entries(options)
+
+            values.forEach(pair => {
+                const [property, value] = pair
+                if (property === 'textContent') {
+                    return
+                }
+
+                newElement.setAttribute(property, value)
+            })
+
+            values.forEach(pair => {
+
+                const [property, value] = pair
+
+
+                const isTextContentProperty =
+                    property === 'textContent' ? true : false
+                if (!isTextContentProperty) {
+                    return
+                }
+
+                const isActive =
+                    value.active ? true : false
+                if (!isActive) {
+                    return
+                }
+
+                newElement.textContent = value.textToSet
+            })
+
+            values.forEach(pair => {
+                const [property, value] = pair
+                if (!property === 'eventListener') {
+                    return
+                }
+
+                if (!value.active) {
+                    return
+                }
+
+                newElement.addEventListener(value.type, value.func)
+            })
+
+            appendWhere.append(newElement)
+            return newElement
+        }
+
+        const fetchItems = async (url) => {
+            const response = await fetch(url)
+            const data = await response.json()
+            return data
+        }
+
+        const setupItems = async (data) => {
+
+            Array.prototype.forEach.call([...tableWrapper.children], (child) => {
+                if(child.tagName === 'TR') {
+                    child.remove()
                 }
             })
-        </script>
-    </body>
+
+            data.items.forEach(urlShorted => {
+
+                const { id, shorter_url } = urlShorted
+
+                const newTr = document.createElement('tr')
+
+                const urlShortedObjectEntries = Object.entries(urlShorted)
+
+                urlShortedObjectEntries.forEach(pair => {
+                    const [property, value] = pair
+
+                    if (property === 'sql_id') {
+                        return
+                    }
+
+                    const newTd = document.createElement('td')
+
+                    if (value.match(/https?/g)) {
+
+                        const aElement = {
+                            a: {
+                                href: value,
+                                target: '_blank',
+                                ['data-id']: id,
+                                ['data-type']: property === 'full_url' ? 'full_url' : 'shorter_url',
+                                textContent: {
+                                    active: true,
+                                    textToSet: value
+                                }
+                            }
+                        }
+
+                        const a = defineElement(aElement, newTd)
+                        newTr.append(newTd)
+
+                        return
+                    }
+
+                    newTd.textContent = value
+                    newTr.appendChild(newTd)
+                })
+
+                const newTd = document.createElement('td')
+
+                const copyButtonElement = {
+                    input: {
+                        type: 'button',
+                        value: 'Copy Link',
+                        eventListener: {
+                            active: true,
+                            type: 'click',
+                            func: () => {
+                                navigator.clipboard.writeText(shorter_url)
+                            }
+                        }
+                    }
+                }
+
+                const copyButton = defineElement(copyButtonElement, newTd)
+
+                newTr.appendChild(newTd)
+                tableWrapper.append(newTr)
+
+            })
+        }
+
+        const initializeItems = async () => {
+            const data = await fetchItems(`${BASE_URL}/api/urls/search?page=1&limit=3`)
+            setupItems(data)
+        }
+
+        initializeItems()
+
+        let page = 1
+        prevAndNextButtonsWrapper.addEventListener('click', async event => {
+            const targetClicked = event.target
+            const { buttonNavigator } = targetClicked.dataset
+
+            switch(buttonNavigator) {
+                case 'next-results':
+                    page++
+                    const moreResults = await fetchItems(`${BASE_URL}/api/urls/search?page=${page}&limit=3`)
+                    setupItems(moreResults)
+                    break
+
+                case 'previous-results':
+                    page--
+                    const previousResult = await fetchItems(`${BASE_URL}/api/urls/search?&page=${page}&limit=3`)
+                    setupItems(previousResult)
+                    break
+
+                default:
+                    break
+            }
+        })
+
+        resultsPerPageSelect.addEventListener('change', async (event) => {
+            const targetChanged = event.target
+            const resultsPerPage = targetChanged.options[targetChanged.selectedIndex].value
+
+            const data = await fetchItems(`${BASE_URL}/api/urls/search?page=${page}&limit=${resultsPerPage}`)
+            setupItems(data)
+
+        })
+
+    </script>
+</body>
+
 </html>

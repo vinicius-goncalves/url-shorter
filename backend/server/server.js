@@ -1,8 +1,8 @@
 const http = require('http')
+const urlNode = require('url')
 
 const port = process.env.PORT || 8080
 const URLControllers = require('../controllers/URLControllers')
-const SQLConnection = require ('../SQLConnection')
 
 const server = http.createServer(async (request, response) => {
     
@@ -10,6 +10,11 @@ const server = http.createServer(async (request, response) => {
     
     switch(method.toLowerCase()) {
         case 'get':
+            if(url.match('/api/urls/search')) {
+                URLControllers.getURLsByParamsAndBetween(url, response)
+                break
+            }
+
             if(url === '/api/urls') {
                 URLControllers.getAllURLs(response)
                 break
@@ -21,11 +26,21 @@ const server = http.createServer(async (request, response) => {
                 break
             }
         
-            if(url.match(/\/link\/[0-9]/g)) {
+            if(url.match(/\/link\/[a-zA-Z0-9]/g)) {
                 const id = url.split('/')[2]
+                console.log(id)
                 URLControllers.getURLByLastPath(id, response)
                 break
             }
+        case 'post':
+            if(url === '/api/urls/new') {
+                URLControllers.addNewURL(request, response)
+                break
+            }
+        case 'options':
+            response.writeHead(200, { 'Access-Control-Allow-Origin': '*' })
+            response.end()
+            break
         default:
             break
     }
