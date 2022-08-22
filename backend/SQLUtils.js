@@ -29,6 +29,13 @@ async function getByID(id = 123) {
     return resultSet[0]
 }
 
+async function getByFullURL(url) {
+    const conn = await connection
+    const sql = 'SELECT * FROM urls WHERE full_url = ?'
+    const [ resultSet ] = await conn.query(sql, [ url ])
+    return resultSet[0]
+}
+
 async function getURLByLastPath(id = 1234) {
     const conn = await connection
     const sql = 'SELECT * FROM urls WHERE shorter_url = ?'
@@ -59,8 +66,6 @@ async function getMaxID () {
     return maxId
 }
 
-getMaxID().then(data => console.log(data))
-
 async function getBetween(startIndex, endIndex) {
     const conn = await connection
     const sql = 'SELECT * FROM urls WHERE sql_id BETWEEN ? AND ?'
@@ -74,5 +79,6 @@ module.exports = {
     getURLByLastPath,
     addNew,
     getBetween,
-    getMaxID
+    getMaxID,
+    getByFullURL
 }

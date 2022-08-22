@@ -120,10 +120,13 @@
         <input type="button" data-js="create-new-shorted-url" value="Shorter now" />
         <select data-js="results-per-page">
             <optgroup>
-                <option disabled selected>Show how many per page?</option>
+                <option value="3" disabled selected>Show how many per page?</option>
                 <option value="3">3</option>
                 <option value="5">5</option>
                 <option value="10">10</option>
+                <option value="10">25</option>
+                <option value="10">50</option>
+                <option value="10">100</option>
             </optgroup>
         </select>
     </section>
@@ -252,6 +255,10 @@
 
                     if (value.match(/https?/g)) {
 
+                        const formattedText = value.length > 36 
+                            ? value.substring(0, 36) + '...' 
+                            : value
+
                         const aElement = {
                             a: {
                                 href: value,
@@ -260,7 +267,7 @@
                                 ['data-type']: property === 'full_url' ? 'full_url' : 'shorter_url',
                                 textContent: {
                                     active: true,
-                                    textToSet: value
+                                    textToSet: formattedText
                                 }
                             }
                         }
@@ -308,19 +315,23 @@
 
         let page = 1
         prevAndNextButtonsWrapper.addEventListener('click', async event => {
+
             const targetClicked = event.target
             const { buttonNavigator } = targetClicked.dataset
+
+            const resultsPerPageOptions = resultsPerPageSelect.options
+            const selectedIndex = resultsPerPageOptions[resultsPerPageSelect.selectedIndex].value
 
             switch(buttonNavigator) {
                 case 'next-results':
                     page++
-                    const moreResults = await fetchItems(`${BASE_URL}/api/urls/search?page=${page}&limit=3`)
+                    const moreResults = await fetchItems(`${BASE_URL}/api/urls/search?page=${page}&limit=${selectedIndex}`)
                     setupItems(moreResults)
                     break
 
                 case 'previous-results':
                     page--
-                    const previousResult = await fetchItems(`${BASE_URL}/api/urls/search?&page=${page}&limit=3`)
+                    const previousResult = await fetchItems(`${BASE_URL}/api/urls/search?&page=${page}&limit=${selectedIndex}`)
                     setupItems(previousResult)
                     break
 

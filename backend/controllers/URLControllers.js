@@ -1,26 +1,27 @@
-const SQLConnection = require('../SQLConnection')
+const SQLUtils = require('../SQLUtils')
 const Utils = require('../Utils.js')
 
 const url = require('url')
+
+const defaultHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET'
+}
 
 const getAllURLs = async (response) => {
 
     try {
         
-        const allURLs = await SQLConnection.getAll()
-        response.writeHead(200, { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-         })
+        const allURLs = await SQLUtils.getAll()
+        
+        response.writeHead(200, headers)
         response.write(JSON.stringify(allURLs, null, 2))
         response.end()
 
     } catch (error) {
         console.log(error)
-        response.writeHead(400, { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*' 
-        })
+        response.writeHead(400, defaultHeaders)
         response.write(JSON.stringify({ message: 'An error has occurred when tried to get all URLs.' }))
         response.end()
     }
@@ -30,22 +31,16 @@ const getURLByID = async (id, response) => {
 
     try {
         
-        const urlFound = await SQLConnection.getByID(id)
+        const urlFound = await SQLUtils.getByID(id)
 
         if(!urlFound) {
-            response.writeHead(404, { 
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            })
+            response.writeHead(404, defaultHeaders)
             response.write(JSON.stringify({ message: 'URL searched by ID has not been found.' }))
             response.end()
             return
         }
 
-        response.writeHead(200, { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-        })
+        response.writeHead(200, defaultHeaders)
         response.write(JSON.stringify(urlFound))
         response.end()
 
@@ -60,7 +55,7 @@ const getURLByLastPath = async (id, response) => {
 
     try {
 
-        const urlFound = await SQLConnection.getURLByLastPath(id)
+        const urlFound = await SQLUtils.getURLByLastPath(id)
 
         if(!urlFound) {
             response.writeHead(404, { 'Content-Type': 'application/json' })
@@ -80,29 +75,47 @@ const getURLByLastPath = async (id, response) => {
     }
 }
 
-const addNewURL = (request, response) => {
+const addNewURL = async (request, response) => {
     try {
-        const data = new Promise(resolve => {
-            const buffer = []
-            request.on('data', chunk => {
-                buffer.push(chunk)
-            })
-            request.on('end', () => {
-                resolve(Buffer.concat(buffer).toString())
-            })
-        })
 
-        data.then(async dataReceived => {
-            const url = JSON.parse(dataReceived)
-            const { newURL } = url
-            
-            const resultSet = await SQLConnection.addNew(newURL, Utils.randomCharacters('abcd123'))
-            console.log(resultSet)
+        const newURLJSON = await Utils.getBufferData(request)
+        const newURLObject = JSON.parse(newURLJSON)
+        
+        const { newURL } = newURLObject
 
-            response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-            response.write(JSON.stringify({ message: 'Created' }))
+        const fullURLFound = await SQLUtils.getByFullURL(newURL)
+        if(fullURLFound) {
+            response.writeHead(409, defaultHeaders)
+            response.write(JSON.stringify({ message: 'URL already exists.' }))
             response.end()
-        })
+            return
+        }
+        
+        let linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
+        const URLFound = await SQLUtils.getURLByLastPath(linkGenerated)
+
+        let exit = false
+        while(!exit) {
+            if(URLFound) {
+                linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
+                const newSearchResult = await SQLUtils.getURLByLastPath(linkGenerated)
+                if(!newSearchResult) {
+                    exit = true
+                    return
+                }
+
+                console.log(linkGenerated)
+                exit = false
+                return
+            }
+            exit = true
+        }
+
+        await SQLUtils.addNew(newURL, linkGenerated)
+
+        response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        response.write(JSON.stringify({ message: 'Created' }))
+        response.end()
 
     } catch (error) {
         console.log(error)
@@ -115,7 +128,7 @@ const addNewURL = (request, response) => {
 const getURLsByParamsAndBetween = async (urlWithParams, response) => {
     try {
          
-        const maxId = await SQLConnection.getMaxID()
+        const maxId = await SQLUtils.getMaxID()
 
         const params = url.parse(urlWithParams, true).query
         const { ['page']: p, ['limit']: l } = params
@@ -126,39 +139,60 @@ const getURLsByParamsAndBetween = async (urlWithParams, response) => {
         const startIndex = (page - 1) * limit
         const endIndex = page * limit
 
-        const result = new Promise(resolve => {
+        const pagesInformationObject = new Promise(resolve => {
 
             const pageResult = Object.create(null)
             
             const thereAreMoreResults = endIndex < maxId ? true : false
-            if(thereAreMoreResults) {
-                pageResult.nextPage = {
-                    next: page + 1,
-                    limit,
-                    fullUrl: `http://localhost:8080/api/urls/search?page=${page + 1}&limit=${limit}`
-                }
+            switch(thereAreMoreResults) {
+                case true:
+                    pageResult.nextPage = {
+                        areThereMorePages: true,
+                        nextPageNumber: page + 1,
+                        limit,
+                        fullUrl: `http://localhost:8080/api/urls/search?page=${page + 1}&limit=${limit}`
+                    }
+                    break
+
+                case false:
+                    pageResult.nextPage = {
+                        areThereMorePages: false
+                    }
+                    break
             }
 
             const thereArePreviousResults = startIndex > 0 ? true : false
-            if(thereArePreviousResults) {
-                pageResult.previousPage = {
-                    previous: page - 1,
-                    limit,
-                    fullUrl: `http://localhost:8080/api/urls/search?page=${page - 1}&limit=${limit}`
-                }
+            switch(thereArePreviousResults) {
+                case true:
+                    pageResult.previousPage = {
+                        areTherePreviousPage: true,
+                        previousPageNumber: page - 1,
+                        limit,
+                        fullUrl: `http://localhost:8080/api/urls/search?page=${page - 1}&limit=${limit}`
+                    }
+                    break
+                case false:
+                    pageResult.previousPage = {
+                        areTherePreviousPage: false
+                    }
+                    break
             }
+
             resolve(pageResult)
         })
 
-        result.then(async (result) => {
+        const resultPagesInformation = await pagesInformationObject
 
-            const resultSet = await SQLConnection.getBetween((startIndex + 1), endIndex)
-            result.items = resultSet
-    
-            response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-            response.write(JSON.stringify(result, null, 2))
-            response.end()
+        const resultSet = await SQLUtils.getBetween((startIndex + 1), endIndex)
+        Object.defineProperty(resultPagesInformation, 'items', {
+            value: resultSet,
+            enumerable: true,
+            configurable: true
         })
+
+        response.writeHead(200, defaultHeaders)
+        response.write(JSON.stringify(resultPagesInformation, null, 2))
+        response.end()
 
     } catch (error) { 
         console.log(error)

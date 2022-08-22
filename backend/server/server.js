@@ -7,7 +7,6 @@ const URLControllers = require('../controllers/URLControllers')
 const server = http.createServer(async (request, response) => {
     
     const { method, url } = request
-    
     switch(method.toLowerCase()) {
         case 'get':
             if(url.match('/api/urls/search')) {
@@ -28,19 +27,25 @@ const server = http.createServer(async (request, response) => {
         
             if(url.match(/\/link\/[a-zA-Z0-9]/g)) {
                 const id = url.split('/')[2]
-                console.log(id)
                 URLControllers.getURLByLastPath(id, response)
                 break
             }
+
         case 'post':
             if(url === '/api/urls/new') {
                 URLControllers.addNewURL(request, response)
                 break
             }
+
         case 'options':
-            response.writeHead(200, { 'Access-Control-Allow-Origin': '*' })
+            response.writeHead(200, { 
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': 'GET, POST'
+            })
             response.end()
             break
+
         default:
             break
     }

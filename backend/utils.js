@@ -1,16 +1,38 @@
-const randomCharacters = (chars) => {
+const getBufferData = (request) => {
+    const promise = new Promise(resolve => {
+
+        const buffer = []
+        request.on('data', (chunk) => {
+            buffer.push(chunk)
+        })
+
+        request.on('end', () => {
+            resolve(Buffer.concat(buffer).toString())
+        })
+    })
+
+    return promise
+}
+
+const randomCharacters = (length, chars) => {
     const charsShuffle = Array.from(chars)
         .map(char => {
             const sort = Math.random()
-            return {
-                sort, charItem: char.match(/[a-zA-Z]/g) ? sort < .5 ? char.toUpperCase() : char.toLowerCase() : char
+            console.log(sort)
+
+            const resultObject = {
+                sort, 
+                character: sort < .45 ? char.toUpperCase() : char.toLowerCase()
             }
-        })
-        .sort((a, b) => a.sort - b.sort)
-        .map(({ charItem }) => charItem).join('')
+            return resultObject
+        
+        }).sort((a, b) => a.sort - b.sort)
+          .map(({ character }) => character).join('').slice(0, length)
+        
     return charsShuffle
 }
 
 module.exports = {
-    randomCharacters
+    randomCharacters,
+    getBufferData
 }
