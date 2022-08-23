@@ -86,25 +86,24 @@ const addNewURL = async (request, response) => {
         const fullURLFound = await SQLUtils.getByFullURL(newURL)
         if(fullURLFound) {
             response.writeHead(409, defaultHeaders)
-            response.write(JSON.stringify({ message: 'URL already exists.' }))
+            response.write(JSON.stringify({ urlCreated: false, message: 'The URL to short already exists.' }))
             response.end()
             return
         }
         
-        let linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
+        let linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz')
         const URLFound = await SQLUtils.getURLByLastPath(linkGenerated)
 
         let exit = false
         while(!exit) {
             if(URLFound) {
-                linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
+                linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz')
                 const newSearchResult = await SQLUtils.getURLByLastPath(linkGenerated)
                 if(!newSearchResult) {
                     exit = true
                     return
                 }
 
-                console.log(linkGenerated)
                 exit = false
                 return
             }
@@ -114,7 +113,7 @@ const addNewURL = async (request, response) => {
         await SQLUtils.addNew(newURL, linkGenerated)
 
         response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-        response.write(JSON.stringify({ message: 'Created' }))
+        response.write(JSON.stringify({ urlCreated: true, id: linkGenerated, message: 'The URL has been created succeffuly!' }))
         response.end()
 
     } catch (error) {

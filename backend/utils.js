@@ -7,7 +7,7 @@ const getBufferData = (request) => {
         })
 
         request.on('end', () => {
-            resolve(Buffer.concat(buffer).toString())
+            resolve(buffer)
         })
     })
 
@@ -17,17 +17,23 @@ const getBufferData = (request) => {
 const randomCharacters = (length, chars) => {
     const charsShuffle = Array.from(chars)
         .map(char => {
+            
             const sort = Math.random()
-            console.log(sort)
 
             const resultObject = {
                 sort, 
-                character: sort < .45 ? char.toUpperCase() : char.toLowerCase()
+                char
             }
+
+            console.log(resultObject)
             return resultObject
-        
-        }).sort((a, b) => a.sort - b.sort)
-          .map(({ character }) => character).join('').slice(0, length)
+            
+        })
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ char }) => Math.random() < .5 ? char.toUpperCase() : char.toLowerCase())
+        .join('')
+        .slice(0, length)
+
         
     return charsShuffle
 }

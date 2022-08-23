@@ -17,6 +17,17 @@
             user-select: none;
         }
 
+        [data-js="informations"] {
+            font-style: italic;
+            color: #000000b9;
+            font-size: 1.2rem;
+        }
+
+        [data-js="status-code"] {
+            color: #000000b9;
+            font-style: italic;
+        }
+
         .buttons-wrapper {
             display: flex;
             flex-direction: column;
@@ -115,9 +126,14 @@
 
     <h1>URLs</h1>
     <section class="buttons-wrapper">
+
         <input type="text" data-js="url-to-shorted" placeholder="Input the URL here"
-            value="https://www.youtube.com/user/funkyblackcat" />
-        <input type="button" data-js="create-new-shorted-url" value="Shorter now" />
+            value="https://www.youtube.com/user/funkyblackcat"/>
+
+        <span data-js="informations">Waiting for some action.</span>
+        <span data-js="status-code">Status Code: <span data-js="code">...</span></span>
+
+        <input type="button" data-js="create-new-shorted-url" value="Shorter now"/>
         <select data-js="results-per-page">
             <optgroup>
                 <option value="3" disabled selected>Show how many per page?</option>
@@ -151,22 +167,15 @@
         const tableWrapper = document.querySelector('[data-js="table-wrapper"]')
         const createNewShortedURLButton = document.querySelector('[data-js="create-new-shorted-url"]')
         const urlToShorted = document.querySelector('[data-js="url-to-shorted"]')
+        const informations = document.querySelector('[data-js="informations"]')
         
         const prevAndNextButtonsWrapper = document.querySelector('.prevAndNextResultsWrapper')
         const prevAndNextButtons = document.querySelectorAll('[data-button-navigator]')
         const resultsPerPageSelect = document.querySelector('[data-js="results-per-page"]')
 
-        createNewShortedURLButton.addEventListener('click', () => {
-            const urlValue = urlToShorted.value
-            fetch(`${BASE_URL}/api/urls/new`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    newURL: urlValue
-                })
-            }).then(response => response.json())
-                .then(result => console.log(result))
-        })
+        const DOMstatusCode = document.querySelector('[data-js="code"]')
 
+        //! <------- Utils ------->
 
         const defineElement = (elementObject, appendWhere = document.body) => {
 
@@ -222,11 +231,153 @@
             return newElement
         }
 
+        //! <------- Utils ------->
+
+        //! <------- IndexedDB ---------->
+
+        const request = indexedDB.open('shorter-preferences', 1)
+        const objectStoreName = 'shorter-utils'
+
+        const dbPromise = new Promise(resolve => {
+
+            request.addEventListener('success', (event) => {
+                resolve(event.target.result)
+            })
+
+            request.addEventListener('upgradeneeded', (event) => {
+                const db = event.target.result
+
+                if(!db.objectStoreNames.contains(objectStoreName)) {
+
+                    db.createObjectStore(objectStoreName, { autoIncrement: true })
+
+                    const transaction = event.target.transaction
+                    const store = transaction.objectStore(objectStoreName)
+
+                    const obj = {
+                        id: 'pageInformation',
+                        page: 1,
+                        limit: 5,
+                        defaultPage: `http://localhost:8080/api/urls/search?page=$`
+                    }
+
+                    const query = store.put(obj)
+
+                    query.addEventListener('success', () => {
+                        const createMessage = 'Created page information into IndexedDB.'
+                        console.info(createMessage)
+                    })
+                    
+                    query.addEventListener('error', () => {
+                        const errorMessage = 'An error has occurred when tried to create the page information into IndexedDB.'
+                        console.error(errorMessage)
+                    })
+
+                    return
+                }
+            })
+
+            request.addEventListener('error', (event) => {
+                console.error(event)               
+            })
+        })
+
+        const addNewObjectStore = async (objectStore) => {
+            const db = await dbPromise
+            const transaction = db.transaction(objectStoreName, 'readwrite')
+            console.log(transaction)
+            const store = transaction.objectStore(objectStoreName)
+            const query = store.put({ ...objectStore })
+
+            query.addEventListener('success', () => {
+                console.log('New item has added')
+            })
+            query.addEventListener('error', () => {
+                console.error('An error has occcurred')
+            })
+        }
+
+        const getPageInformationObject = () => {
+
+            const indexedDBShorterProto = {
+                updatePage: function(pageNumber) {
+                    this.page = pageNumber
+                },
+                updateLimit: function(limitNumber) {
+                    this.limit = limitNumber
+                },
+                getPage: function () {
+                    return this.page
+                },
+                getLimit: function () {
+                    return this.limit
+                },
+                getLink: function () {
+                    return this.defaultPage
+                }
+            }
+
+            const pageInformationPromise = new Promise(async (resolve) => {
+
+                const db = await dbPromise
+                const transaction = db.transaction(objectStoreName, 'readonly')
+                const store = transaction.objectStore(objectStoreName)
+                const openCursor = store.openCursor()
+
+                openCursor.addEventListener('success', (event) => {
+                    const { ['result']: cursor } = event.target
+                    
+                    if(!cursor) {
+                        return
+                    }
+
+                    if(cursor.value.id === 'pageInformation') {
+                        Object.setPrototypeOf(cursor.value, indexedDBShorterProto)
+                        return resolve(cursor.value)
+                    }
+                    
+                    cursor.continue()
+                })
+            })
+
+            return pageInformationPromise
+
+        }
+        
+        //!<------- IndexedDB ---------->
+
+        createNewShortedURLButton.addEventListener('click', async () => {
+            const urlValue = urlToShorted.value
+
+            const requestObject = {
+                method: 'POST',
+                body: JSON.stringify({ newURL: urlValue })
+            }
+
+            const request = new Request(`${BASE_URL}/api/urls/new`, requestObject)
+
+            const response = await fetch(request)
+            const result = await response.json()
+
+            if(!response.ok) {
+                DOMstatusCode.textContent = `${response.status} - ${response.statusText}`
+                DOMstatusCode.setAttribute('style', 'color: red;')
+                informations.textContent = result.message
+                return
+            }
+
+            DOMstatusCode.textContent = `${response.status} - ${response.statusText}`
+            DOMstatusCode.setAttribute('style', 'color: green;')
+            informations.textContent = result.message
+
+        })
+
         const fetchItems = async (url) => {
             const response = await fetch(url)
             const data = await response.json()
             return data
         }
+
 
         const setupItems = async (data) => {
 
@@ -245,7 +396,7 @@
                 const urlShortedObjectEntries = Object.entries(urlShorted)
 
                 urlShortedObjectEntries.forEach(pair => {
-                    const [property, value] = pair
+                    const [ property, value ] = pair
 
                     if (property === 'sql_id') {
                         return
