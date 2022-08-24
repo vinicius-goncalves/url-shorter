@@ -164,7 +164,7 @@ const getURLsByParamsAndBetween = async (urlWithParams, response) => {
             switch(thereArePreviousResults) {
                 case true:
                     pageResult.previousPage = {
-                        areTherePreviousPage: true,
+                        areTherePreviousPages: true,
                         previousPageNumber: page - 1,
                         limit,
                         fullUrl: `http://localhost:8080/api/urls/search?page=${page - 1}&limit=${limit}`

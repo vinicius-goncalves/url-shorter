@@ -157,8 +157,8 @@
         </table>
     </section>
     <section class="prevAndNextResultsWrapper">
-        <input type="button" value="Previous" data-button-navigator="previous-results">
-        <input type="button" value="Next" data-button-navigator="next-results">
+        <!-- <input type="button" value="Previous" data-button-navigator="previous-results">
+        <input type="button" value="Next" data-button-navigator="next-results"> -->
     </section>
     <script type="text/javascript">
 
@@ -235,7 +235,7 @@
 
         //! <------- IndexedDB ---------->
 
-        const request = indexedDB.open('shorter-preferences', 1)
+        const request = indexedDB.open('shorter-preferences', 3)
         const objectStoreName = 'shorter-utils'
 
         const dbPromise = new Promise(resolve => {
@@ -257,8 +257,8 @@
                     const obj = {
                         id: 'pageInformation',
                         page: 1,
-                        limit: 5,
-                        defaultPage: `http://localhost:8080/api/urls/search?page=$`
+                        limit: 3,
+                        defaultPage: `${BASE_URL}/api/urls/search?page=1&limit=3`
                     }
 
                     const query = store.put(obj)
@@ -300,10 +300,10 @@
         const getPageInformationObject = () => {
 
             const indexedDBShorterProto = {
-                updatePage: function(pageNumber) {
+                setPage: function(pageNumber) {
                     this.page = pageNumber
                 },
-                updateLimit: function(limitNumber) {
+                setLimit: function(limitNumber) {
                     this.limit = limitNumber
                 },
                 getPage: function () {
@@ -312,8 +312,11 @@
                 getLimit: function () {
                     return this.limit
                 },
-                getLink: function () {
+                getActualPageAndLimitLink: function () {
                     return this.defaultPage
+                },
+                updateLinkWithPageAndLimit: function (page = 1, limit = 7) {
+                    return this.defaultPage = `${BASE_URL}/api/urls/search?page=${page}&limit=${limit}`
                 }
             }
 
@@ -343,8 +346,36 @@
             return pageInformationPromise
 
         }
+
+        const updatePageInformation = async (newObject) => {
+            const db = await dbPromise
+            const transaction = db.transaction(objectStoreName, 'readwrite')
+            const store = transaction.objectStore(objectStoreName)
+            const openCursor = store.openCursor()
+            
+            openCursor.addEventListener('success', (event) => { 
+                const { ['result']: cursor } = event.target
+
+                if(!cursor) {
+                    return
+                }
+
+                if(cursor.value.id === 'pageInformation') {
+                    const request = cursor.update(newObject)
+                    request.addEventListener('success', () => {
+                        console.log('Updated')
+                    })
+                    
+                    return
+                }
+
+                cursor.continue()
+            })
+        }
         
         //!<------- IndexedDB ---------->
+
+        //!<------- Buttons ---------->
 
         createNewShortedURLButton.addEventListener('click', async () => {
             const urlValue = urlToShorted.value
@@ -371,6 +402,10 @@
             informations.textContent = result.message
 
         })
+
+        //!<------- Buttons ---------->
+
+        //!<------- Handles ---------->
 
         const fetchItems = async (url) => {
             const response = await fetch(url)
@@ -457,48 +492,74 @@
             })
         }
 
-        const initializeItems = async () => {
-            const data = await fetchItems(`${BASE_URL}/api/urls/search?page=1&limit=3`)
-            setupItems(data)
+        getPageInformationObject().then(pageInfoObj => {
+            console.log(pageInfoObj.getActualPageAndLimitLink())
+            fetchItems(pageInfoObj.getActualPageAndLimitLink()).then(data => {
+                setupItems(data)
+            })
+        })
+
+        const verifyIfHasNextOrPreviousPages = async () => {
+        
+            const pageInfoObj = await getPageInformationObject()
+
+            const response = await fetchItems(pageInfoObj.getActualPageAndLimitLink())
+            const { nextPage, previousPage } = response
+
+            if(nextPage.areThereMorePages) {
+                
+                const nextPageObject = {
+                    input: {
+                        type: 'button',
+                        value: 'More results',
+                        eventListener: {
+                            active: true,
+                            type: 'click',
+                            func: async () => {
+                                pageInfoObj.setPage(pageInfoObj.getPage() + 1)
+                                pageInfoObj.updateLinkWithPageAndLimit(pageInfoObj.getPage(), pageInfoObj.getLimit())
+                                updatePageInformation(pageInfoObj)
+                                
+                                const newPageItemsResponse = 
+                                    await fetchItems(pageInfoObj.getActualPageAndLimitLink())
+                                setupItems(newPageItemsResponse)
+                                console.log(newPageItemsResponse)
+                            }
+                        }
+                    }
+                }
+
+                const nextPagesButton = defineElement(nextPageObject, prevAndNextButtonsWrapper)
+            }
+
+            if(previousPage.areTherePreviousPages) {
+                const previousPageObject = {
+                    input: {
+                        type: 'button',
+                        value: 'Previous Result',
+                        eventListener: {
+                            active: true,
+                            type: 'click',
+                            func: async () => {
+                                pageInfoObj.setPage(pageInfoObj.getPage() - 1)
+                                pageInfoObj.updateLinkWithPageAndLimit(pageInfoObj.getPage(), pageInfoObj.getLimit())
+                                updatePageInformation(pageInfoObj)
+                                
+                                const newPageItemsResponse = 
+                                    await fetchItems(pageInfoObj.getActualPageAndLimitLink())
+                                setupItems(newPageItemsResponse)
+                                console.log(newPageItemsResponse)
+                            }
+                        }
+                    }
+                }
+                const nextPagesButton = defineElement(previousPageObject, prevAndNextButtonsWrapper)
+            }
         }
 
-        initializeItems()
+        verifyIfHasNextOrPreviousPages()
 
-        let page = 1
-        prevAndNextButtonsWrapper.addEventListener('click', async event => {
-
-            const targetClicked = event.target
-            const { buttonNavigator } = targetClicked.dataset
-
-            const resultsPerPageOptions = resultsPerPageSelect.options
-            const selectedIndex = resultsPerPageOptions[resultsPerPageSelect.selectedIndex].value
-
-            switch(buttonNavigator) {
-                case 'next-results':
-                    page++
-                    const moreResults = await fetchItems(`${BASE_URL}/api/urls/search?page=${page}&limit=${selectedIndex}`)
-                    setupItems(moreResults)
-                    break
-
-                case 'previous-results':
-                    page--
-                    const previousResult = await fetchItems(`${BASE_URL}/api/urls/search?&page=${page}&limit=${selectedIndex}`)
-                    setupItems(previousResult)
-                    break
-
-                default:
-                    break
-            }
-        })
-
-        resultsPerPageSelect.addEventListener('change', async (event) => {
-            const targetChanged = event.target
-            const resultsPerPage = targetChanged.options[targetChanged.selectedIndex].value
-
-            const data = await fetchItems(`${BASE_URL}/api/urls/search?page=${page}&limit=${resultsPerPage}`)
-            setupItems(data)
-
-        })
+        //!<------- Handles ---------->
 
     </script>
 </body>
