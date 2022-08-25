@@ -43,15 +43,16 @@ async function getURLByLastPath(id = 1234) {
     return resultSet[0]
 }
 
-async function addNew(url, id) {
+async function addNew(url, siteIsKnown, id) {
 
     const randomValue = Math.floor(Math.random() * (9999 - 999 + 1) + 999)
 
     const conn = await connection
-    const sql = 'INSERT INTO urls VALUES (DEFAULT, ?, ?, ?)'
+    const sql = 'INSERT INTO urls VALUES (DEFAULT, ?, ?, ?, ?)'
     const values = [ 
         randomValue, 
-        url, 
+        url,
+        siteIsKnown,
         `${BASE_URL_TO_LINK}/${id}`
     ]
 

@@ -17,15 +17,12 @@ const getBufferData = (request) => {
 const randomCharacters = (length, chars) => {
     const charsShuffle = Array.from(chars)
         .map(char => {
-            
-            const sort = Math.random()
 
+            const sort = Math.random()
             const resultObject = {
                 sort, 
                 char
             }
-
-            console.log(resultObject)
             return resultObject
             
         })

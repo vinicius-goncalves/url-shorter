@@ -91,13 +91,13 @@ const addNewURL = async (request, response) => {
             return
         }
         
-        let linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz')
+        let linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
         const URLFound = await SQLUtils.getURLByLastPath(linkGenerated)
 
         let exit = false
         while(!exit) {
             if(URLFound) {
-                linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz')
+                linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
                 const newSearchResult = await SQLUtils.getURLByLastPath(linkGenerated)
                 if(!newSearchResult) {
                     exit = true
@@ -110,7 +110,43 @@ const addNewURL = async (request, response) => {
             exit = true
         }
 
-        await SQLUtils.addNew(newURL, linkGenerated)
+        const knownWebsites = [
+            'twitter',
+            'google',
+            'mozilla',
+            'youtube',
+            'dribbble',
+            'github',
+            'pinterest',
+            'snapchat',
+            'twitch',
+            'whatsapp',
+            'yahoo',
+            'spotify',
+            'reddit',
+            'soundclound',
+            'facebook',
+            'blogger',
+            'devianart'
+        ]
+
+        const urlDetails = url.parse(newURL)
+
+        const websiteFound = knownWebsites.filter(item => {
+            if(urlDetails.hostname.includes(item)) {
+                return item
+            }
+        })[0]
+
+        if(websiteFound) {
+            await SQLUtils.addNew(newURL, websiteFound, linkGenerated)
+            response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+            response.write(JSON.stringify({ urlCreated: true, id: linkGenerated, message: 'The URL has been created succeffuly!' }))
+            response.end()
+            return
+        }
+
+        await SQLUtils.addNew(newURL, 'unknown', linkGenerated)
 
         response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
         response.write(JSON.stringify({ urlCreated: true, id: linkGenerated, message: 'The URL has been created succeffuly!' }))
@@ -143,6 +179,7 @@ const getURLsByParamsAndBetween = async (urlWithParams, response) => {
             const pageResult = Object.create(null)
             
             const thereAreMoreResults = endIndex < maxId ? true : false
+
             switch(thereAreMoreResults) {
                 case true:
                     pageResult.nextPage = {

@@ -68,6 +68,15 @@
             border: 1px solid black;
         }
 
+        table tr:nth-child(even):hover {
+            background-color: #858585;
+            color: white;
+        }
+
+        table tr:nth-child(odd):hover {
+            background-color: #c5c5c5;
+        }
+
         .table-header {
             background-color: #b9b9b9;
         }
@@ -107,6 +116,11 @@
             background-color: #313131;
         }
 
+
+        .copy-button {
+            min-width: 100%;
+        }
+
         .prevAndNextResultsWrapper {
             display: flex;
             justify-content: center;
@@ -127,7 +141,10 @@
     <h1>URLs</h1>
     <section class="buttons-wrapper">
 
-        <input type="text" data-js="url-to-shorted" placeholder="Input the URL here"
+        <input 
+            type="text" 
+            data-js="url-to-shorted" 
+            placeholder="Input the URL here"
             value="https://www.youtube.com/user/funkyblackcat"/>
 
         <span data-js="informations">Waiting for some action.</span>
@@ -140,17 +157,19 @@
                 <option value="3">3</option>
                 <option value="5">5</option>
                 <option value="10">10</option>
-                <option value="10">25</option>
-                <option value="10">50</option>
-                <option value="10">100</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
             </optgroup>
         </select>
     </section>
     <section class="urls-wrapper">
         <table data-js="table-wrapper">
             <tr class="table-header">
+                <th>SQL ID</th>
                 <th>ID</th>
                 <th>Original Link</th>
+                <th>Original Source</th>
                 <th>Shorted Link</th>
                 <th>Options</th>
             </tr>
@@ -168,7 +187,7 @@
         const createNewShortedURLButton = document.querySelector('[data-js="create-new-shorted-url"]')
         const urlToShorted = document.querySelector('[data-js="url-to-shorted"]')
         const informations = document.querySelector('[data-js="informations"]')
-        
+
         const prevAndNextButtonsWrapper = document.querySelector('.prevAndNextResultsWrapper')
         const prevAndNextButtons = document.querySelectorAll('[data-button-navigator]')
         const resultsPerPageSelect = document.querySelector('[data-js="results-per-page"]')
@@ -227,7 +246,7 @@
                 newElement.addEventListener(value.type, value.func)
             })
 
-            appendWhere.append(newElement)
+            appendWhere.prepend(newElement)
             return newElement
         }
 
@@ -247,7 +266,7 @@
             request.addEventListener('upgradeneeded', (event) => {
                 const db = event.target.result
 
-                if(!db.objectStoreNames.contains(objectStoreName)) {
+                if (!db.objectStoreNames.contains(objectStoreName)) {
 
                     db.createObjectStore(objectStoreName, { autoIncrement: true })
 
@@ -267,7 +286,7 @@
                         const createMessage = 'Created page information into IndexedDB.'
                         console.info(createMessage)
                     })
-                    
+
                     query.addEventListener('error', () => {
                         const errorMessage = 'An error has occurred when tried to create the page information into IndexedDB.'
                         console.error(errorMessage)
@@ -278,7 +297,7 @@
             })
 
             request.addEventListener('error', (event) => {
-                console.error(event)               
+                console.error(event)
             })
         })
 
@@ -300,10 +319,10 @@
         const getPageInformationObject = () => {
 
             const indexedDBShorterProto = {
-                setPage: function(pageNumber) {
+                setPage: function (pageNumber) {
                     this.page = pageNumber
                 },
-                setLimit: function(limitNumber) {
+                setLimit: function (limitNumber) {
                     this.limit = limitNumber
                 },
                 getPage: function () {
@@ -312,7 +331,7 @@
                 getLimit: function () {
                     return this.limit
                 },
-                getActualPageAndLimitLink: function () {
+                getLinkWithActualPageAndLimit: function () {
                     return this.defaultPage
                 },
                 updateLinkWithPageAndLimit: function (page = 1, limit = 7) {
@@ -329,16 +348,16 @@
 
                 openCursor.addEventListener('success', (event) => {
                     const { ['result']: cursor } = event.target
-                    
-                    if(!cursor) {
+
+                    if (!cursor) {
                         return
                     }
 
-                    if(cursor.value.id === 'pageInformation') {
+                    if (cursor.value.id === 'pageInformation') {
                         Object.setPrototypeOf(cursor.value, indexedDBShorterProto)
                         return resolve(cursor.value)
                     }
-                    
+
                     cursor.continue()
                 })
             })
@@ -352,33 +371,39 @@
             const transaction = db.transaction(objectStoreName, 'readwrite')
             const store = transaction.objectStore(objectStoreName)
             const openCursor = store.openCursor()
-            
-            openCursor.addEventListener('success', (event) => { 
+
+            openCursor.addEventListener('success', (event) => {
                 const { ['result']: cursor } = event.target
 
-                if(!cursor) {
+                if (!cursor) {
                     return
                 }
 
-                if(cursor.value.id === 'pageInformation') {
+                if (cursor.value.id === 'pageInformation') {
                     const request = cursor.update(newObject)
                     request.addEventListener('success', () => {
                         console.log('Updated')
                     })
-                    
+
                     return
                 }
 
                 cursor.continue()
             })
         }
-        
+
         //!<------- IndexedDB ---------->
 
         //!<------- Buttons ---------->
 
         createNewShortedURLButton.addEventListener('click', async () => {
-            const urlValue = urlToShorted.value
+            
+            const urlValue = urlToShorted.value.trim()
+            if(!urlValue.match(/(https?:\/\/).+\S/g)) {
+                informations.textContent = 'That URL isn\'t valid'
+                DOMstatusCode.textContent = '...'
+                return
+            }
 
             const requestObject = {
                 method: 'POST',
@@ -390,7 +415,7 @@
             const response = await fetch(request)
             const result = await response.json()
 
-            if(!response.ok) {
+            if (!response.ok) {
                 DOMstatusCode.textContent = `${response.status} - ${response.statusText}`
                 DOMstatusCode.setAttribute('style', 'color: red;')
                 informations.textContent = result.message
@@ -417,97 +442,122 @@
         const setupItems = async (data) => {
 
             Array.prototype.forEach.call([...tableWrapper.children], (child) => {
-                if(child.tagName === 'TR') {
+                if (child.tagName === 'TR') {
                     child.remove()
                 }
             })
 
-            data.items.forEach(urlShorted => {
+            const { items } = data
 
-                const { id, shorter_url } = urlShorted
+            const createdItems = items.map(urlShorted => {
 
+                const urlShortedProperties = Object.getOwnPropertyNames(urlShorted)
+                
                 const newTr = document.createElement('tr')
 
-                const urlShortedObjectEntries = Object.entries(urlShorted)
-
-                urlShortedObjectEntries.forEach(pair => {
-                    const [ property, value ] = pair
-
-                    if (property === 'sql_id') {
-                        return
-                    }
+                urlShortedProperties.forEach(urlShortedProperty => {
 
                     const newTd = document.createElement('td')
 
-                    if (value.match(/https?/g)) {
+                    const property = String(urlShortedProperty)
+                    const propertyValue = String(urlShorted[urlShortedProperty])
 
-                        const formattedText = value.length > 36 
-                            ? value.substring(0, 36) + '...' 
-                            : value
+                    const slicedString = propertyValue.length > 36 
+                        ? `${propertyValue.slice(0, 36)}...`
+                        : propertyValue
+                    
+                    if(propertyValue.match(/https?/g)) {
 
-                        const aElement = {
+                        const hrefObject = {
                             a: {
-                                href: value,
-                                target: '_blank',
-                                ['data-id']: id,
-                                ['data-type']: property === 'full_url' ? 'full_url' : 'shorter_url',
+                                href: propertyValue,
                                 textContent: {
                                     active: true,
-                                    textToSet: formattedText
+                                    textToSet: slicedString
                                 }
                             }
                         }
 
-                        const a = defineElement(aElement, newTd)
+                        defineElement(hrefObject, newTd)
                         newTr.append(newTd)
+                        return
+                    }
+                    
+                    if(property === 'external_site_identified') {
+                        const imgObject = {
+                            img: {
+                                src: `icons/${propertyValue}-64x64.png`,
+                                width: 32
+                            }
+                        }
 
+                        defineElement(imgObject, newTd)
+                        newTr.append(newTd)
                         return
                     }
 
-                    newTd.textContent = value
-                    newTr.appendChild(newTd)
+
+                    newTd.textContent = slicedString
+                    newTr.append(newTd)
                 })
-
-                const newTd = document.createElement('td')
-
-                const copyButtonElement = {
+            
+                const copyTd = document.createElement('td')
+                const copyObject = {
                     input: {
                         type: 'button',
-                        value: 'Copy Link',
+                        value: 'Copy',
+                        class: 'copy-button',
                         eventListener: {
                             active: true,
                             type: 'click',
                             func: () => {
+                                const { shorter_url } = urlShorted
                                 navigator.clipboard.writeText(shorter_url)
                             }
                         }
                     }
                 }
 
-                const copyButton = defineElement(copyButtonElement, newTd)
+                defineElement(copyObject, copyTd)
+                newTr.append(copyTd)
 
-                newTr.appendChild(newTd)
-                tableWrapper.append(newTr)
-
+                return newTr
             })
+
+            createdItems.forEach(item => tableWrapper.append(item))
         }
 
         getPageInformationObject().then(pageInfoObj => {
-            console.log(pageInfoObj.getActualPageAndLimitLink())
-            fetchItems(pageInfoObj.getActualPageAndLimitLink()).then(data => {
+            
+            const selectActualValue = {
+                option: {
+                    disabled: false,
+                    ['data-information']: 'select-wrapper',
+                    textContent: { 
+                        active: true,
+                        textToSet: `Now is showing ${pageInfoObj.getLimit()} results per page`
+                    }
+                }
+            }
+
+            defineElement(selectActualValue, resultsPerPageSelect)
+
+            fetchItems(pageInfoObj.getLinkWithActualPageAndLimit()).then(data => {
                 setupItems(data)
             })
         })
 
         const verifyIfHasNextOrPreviousPages = async () => {
-        
+
+            prevAndNextButtonsWrapper.innerHTML = ''
+
             const pageInfoObj = await getPageInformationObject()
 
-            const response = await fetchItems(pageInfoObj.getActualPageAndLimitLink())
+            const response = await fetchItems(pageInfoObj.getLinkWithActualPageAndLimit())
             const { nextPage, previousPage } = response
 
-            if(nextPage.areThereMorePages) {
-                
+            if (nextPage.areThereMorePages) {
+
                 const nextPageObject = {
                     input: {
                         type: 'button',
@@ -519,24 +569,23 @@
                                 pageInfoObj.setPage(pageInfoObj.getPage() + 1)
                                 pageInfoObj.updateLinkWithPageAndLimit(pageInfoObj.getPage(), pageInfoObj.getLimit())
                                 updatePageInformation(pageInfoObj)
-                                
+
                                 const newPageItemsResponse = 
-                                    await fetchItems(pageInfoObj.getActualPageAndLimitLink())
+                                    await fetchItems(pageInfoObj.getLinkWithActualPageAndLimit())
                                 setupItems(newPageItemsResponse)
                                 console.log(newPageItemsResponse)
                             }
                         }
                     }
                 }
-
-                const nextPagesButton = defineElement(nextPageObject, prevAndNextButtonsWrapper)
+                defineElement(nextPageObject, prevAndNextButtonsWrapper)
             }
 
-            if(previousPage.areTherePreviousPages) {
+            if (previousPage.areTherePreviousPages) {
                 const previousPageObject = {
                     input: {
                         type: 'button',
-                        value: 'Previous Result',
+                        value: 'Previous results',
                         eventListener: {
                             active: true,
                             type: 'click',
@@ -544,21 +593,50 @@
                                 pageInfoObj.setPage(pageInfoObj.getPage() - 1)
                                 pageInfoObj.updateLinkWithPageAndLimit(pageInfoObj.getPage(), pageInfoObj.getLimit())
                                 updatePageInformation(pageInfoObj)
-                                
+
                                 const newPageItemsResponse = 
-                                    await fetchItems(pageInfoObj.getActualPageAndLimitLink())
+                                    await fetchItems(pageInfoObj.getLinkWithActualPageAndLimit())
                                 setupItems(newPageItemsResponse)
                                 console.log(newPageItemsResponse)
                             }
                         }
                     }
                 }
-                const nextPagesButton = defineElement(previousPageObject, prevAndNextButtonsWrapper)
+                defineElement(previousPageObject, prevAndNextButtonsWrapper)
             }
         }
 
         verifyIfHasNextOrPreviousPages()
 
+        prevAndNextButtonsWrapper.addEventListener('click', (event) => {
+
+            const targetClicked = event.target
+            const targetClickedValue = targetClicked.value
+
+            verifyIfHasNextOrPreviousPages()
+
+        })
+
+        resultsPerPageSelect.addEventListener('change', async (event) => {
+
+            const changedTo = event.target
+            const targetOptions = changedTo.options
+            const targetLimit = Number(targetOptions[changedTo.selectedIndex].value)
+            
+            const pageInfoObj = await getPageInformationObject()
+            pageInfoObj.setLimit(targetLimit)
+            pageInfoObj.updateLinkWithPageAndLimit(pageInfoObj.getPage(), targetLimit)
+            updatePageInformation(pageInfoObj)
+
+            const data = await fetchItems(pageInfoObj.getLinkWithActualPageAndLimit())
+            setupItems(data)
+
+            document.querySelector('[data-information="select-wrapper"]')
+                .textContent = `Now is showing ${pageInfoObj.getLimit()} results per page`
+            
+            verifyIfHasNextOrPreviousPages()
+
+        })
         //!<------- Handles ---------->
 
     </script>
