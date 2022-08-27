@@ -8,24 +8,12 @@ const defaultHeaders = {
     'Access-Control-Allow-Origin': '*'
 }
 
-const getAllIcons = async (request, response) => {
-    try { 
-        
-        response.writeHead(200, defaultHeaders)
-        response.end()
-
-    } catch (error) {
-        response.writeHead(400, defaultHeaders)
-        response.write({ message: 'Error when tried to get all icons' })
-        response.end()
-    }
-}
-
-const addNewIcon = async (request, response) => {
+const addNewHostname = async (request, response) => {
     try {
 
         const dataReceived = await Utils.getBufferData(request)
         const iconObject = JSON.parse(dataReceived)
+        console.log(iconObject)
         
         const hostnameFound = await SQLIcons.getIconByHostname(iconObject.hostname)
         if(hostnameFound) {
@@ -34,7 +22,7 @@ const addNewIcon = async (request, response) => {
             response.end()
         }
 
-        await SQLIcons.addNewIcon(iconObject.hostname, iconObject.icon)
+        await SQLIcons.insertNewHostname(iconObject.hostname, iconObject.icon)
         response.writeHead(201, defaultHeaders)
         response.write(JSON.stringify({ message: 'Created' }))
         response.end()
@@ -47,6 +35,5 @@ const addNewIcon = async (request, response) => {
 }
 
 module.exports = {
-    getAllIcons,
-    addNewIcon
+    addNewHostname
 }

@@ -1,5 +1,6 @@
-const SQLUrls = require('../sql/SQLUrls.js')
-const Utils = require('../UtilsGeneric.js')
+const SQLUrls = require('../sql/SQLUrls')
+const SQLIcons = require('../sql/SQLIcons')
+const Utils = require('../UtilsGeneric')
 
 const url = require('url')
 
@@ -120,45 +121,9 @@ const addNewURL = async (request, response) => {
                     exit = true
                 }
 
-                const knownWebsites = [
-                    'twitter',
-                    'drive.google',
-                    'google',
-                    'mozilla',
-                    'youtube',
-                    'dribbble',
-                    'github',
-                    'pinterest',
-                    'snapchat',
-                    'twitch',
-                    'whatsapp',
-                    'yahoo',
-                    'spotify',
-                    'reddit',
-                    'soundclound',
-                    'facebook',
-                    'blogger',
-                    'devianart'
-                ]
+                const urlDetails = url.parse(newURL, true)
 
-                const urlDetails = url.parse(newURL)
-
-                const websiteFound = knownWebsites.filter(item => {
-                    if(urlDetails.hostname.includes(item)) {
-                        return item
-                    }
-                })[0]
-
-                if(websiteFound) {
-                    await SQLUrls.addNew(newURL, websiteFound, linkGenerated)
-                    response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-                    response.write(JSON.stringify({ urlCreated: true, id: linkGenerated, message: 'The URL has been created succeffuly!' }))
-                    response.end()
-                    return
-                }
-
-                await SQLUrls.addNew(newURL, 'unknown', linkGenerated)
-
+                await SQLUrls.addNew(newURL, urlDetails.hostname.replace('www.', ''), linkGenerated)
                 response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
                 response.write(JSON.stringify({ urlCreated: true, id: linkGenerated, message: 'The URL has been created succeffuly!' }))
                 response.end()
@@ -192,7 +157,6 @@ const getURLsByParamsAndBetween = async (urlWithParams, response) => {
             const pageResult = Object.create(null)
             
             const thereAreMoreResults = endIndex < maxId ? true : false
-
             switch(thereAreMoreResults) {
                 case true:
                     pageResult.nextPage = {
@@ -233,14 +197,33 @@ const getURLsByParamsAndBetween = async (urlWithParams, response) => {
         const resultPagesInformation = await pagesInformationObject
 
         const resultSet = await SQLUrls.getBetween((startIndex + 1), endIndex)
-        Object.defineProperty(resultPagesInformation, 'items', {
-            value: resultSet,
-            enumerable: true,
-            configurable: true
+
+        const resultWithImages = resultSet.map(async item => {
+            const iconItem = await SQLIcons.getIconByHostname(item.hostname_identified)
+            const unknownItem = await SQLIcons.getIconByHostname('unknown')
+            if(!iconItem) {
+                item.icon = {
+                    icon: Buffer.from(unknownItem.icon).toString('ascii')
+                }
+                return item
+            }
+
+            item.icon = {
+                ...iconItem,
+                icon: Buffer.from(iconItem.icon).toString('ascii')
+            }
+
+            return item
         })
 
+        const items = await Promise.all(resultWithImages)
+        const final = {
+            resultPagesInformation,
+            items
+        }
+
         response.writeHead(200, defaultHeaders)
-        response.write(JSON.stringify(resultPagesInformation, null, 2))
+        response.write(JSON.stringify(final, null, 2))
         response.end()
 
     } catch (error) { 

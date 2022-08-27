@@ -60,7 +60,7 @@ const server = http.createServer(async (request, response) => {
              */
 
             if(url === '/api/icons/new') {
-                URLIconsControllers.addNewIcon(request, response)
+                URLIconsControllers.addNewHostname(request, response)
                 break
             }
 

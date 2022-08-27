@@ -221,7 +221,7 @@
 
             
         <input type="button" data-js="create-new-shorted-url" value="Shorter now"/>
-        <a href="#" data-js="add-original-source" data-target="add-url-origin-wrapper">Add base source</a>
+        <a href="#" data-js="add-original-source" data-target="add-url-origin-wrapper">[Add hostname]</a>
 
         <span data-js="informations">Waiting for some action.</span>
         <span data-js="status-code">Status Code: <span data-js="code">...</span></span>
@@ -244,7 +244,7 @@
                 <th>SQL ID</th>
                 <th>ID</th>
                 <th>Original Link</th>
-                <th>Original Source</th>
+                <th>Host</th>
                 <th>Shorted Link</th>
                 <th>Options</th>
             </tr>
@@ -255,11 +255,11 @@
     <div data-wrapper="add-url-origin-wrapper" style="display: none;">
         <div data-content="add-url-origin-content">
             <i class="material-icons" data-close="add-url-origin-wrapper">close</i>
-            <input type="text" placeholder="Full link e.g: https://www.youtube.com/..." data-js-request="add-url-origin" value="https://www.youtube.com/watch?v=cCYfVfxiThw"/>
-            <span data-js="url-origin" class="src">Source identified:
-                <span data-js="source" class="src">...</span>
+            <input type="text" placeholder="Full link e.g: https://www.youtube.com/..." data-js-request="add-url-origin" value="https://"/>
+            <span data-js="url-origin" class="src">Hostname identified:
+                <span data-js="hostname" class="src">...</span>
             </span>
-            <input type="button" value="Add source" data-button="confirm-source"/>
+            <input type="button" value="Add hostname" data-button="confirm-hostname"/>
             <input type="button" value="Send an icon" data-button="send-icon"/>
         </div>
     </div>
@@ -275,7 +275,7 @@
         const urlToShorted = document.querySelector('[data-js="url-to-shorted"]')
         const informations = document.querySelector('[data-js="informations"]')
         const addUrlOrigin = document.querySelector('[data-js-request="add-url-origin"]')
-        const confirmSourceButton = document.querySelector('[data-button="confirm-source"]')
+        const confirmSourceButton = document.querySelector('[data-button="confirm-hostname"]')
         const sendIconButton = document.querySelector('[data-button="send-icon"]')
         
         const prevAndNextButtonsWrapper = document.querySelector('.prevAndNextResultsWrapper')
@@ -476,11 +476,7 @@
                 }
 
                 if (cursor.value.id === 'pageInformation') {
-                    const request = cursor.update(newObject)
-                    request.addEventListener('success', () => {
-                        console.log('Updated')
-                    })
-
+                    cursor.update(newObject)
                     return
                 }
 
@@ -501,9 +497,12 @@
                 return
             }
 
+            const url = new URL(urlValue)
+            const hostname = url.hostname.replace('www.', '')
+
             const requestObject = {
                 method: 'POST',
-                body: JSON.stringify({ newURL: urlValue })
+                body: JSON.stringify({ newURL: urlValue, hostname })
             }
 
             const request = new Request(`${BASE_URL}/api/urls/new`, requestObject)
@@ -560,9 +559,7 @@
                 }
             })
 
-            const { items } = data
-
-            const createdItems = items.map(urlShorted => {
+            const createdItems = data.items.map(urlShorted => {
 
                 const urlShortedProperties = Object.getOwnPropertyNames(urlShorted)
                 
@@ -570,6 +567,9 @@
 
                 urlShortedProperties.forEach(urlShortedProperty => {
 
+                    if(urlShortedProperty === 'icon') {
+                        return
+                    }
                     const newTd = document.createElement('td')
 
                     const property = String(urlShortedProperty)
@@ -596,10 +596,11 @@
                         return
                     }
                     
-                    if(property === 'external_site_identified') {
+                    if(property === 'hostname_identified') {
+                        const { icon } = urlShorted.icon
                         const imgObject = {
                             img: {
-                                src: `icons/${propertyValue}-64x64.png`,
+                                src: icon,
                                 width: 32
                             }
                         }
@@ -667,7 +668,7 @@
             const pageInfoObj = await getPageInformationObject()
 
             const response = await fetchItems(pageInfoObj.getLinkWithActualPageAndLimit())
-            const { nextPage, previousPage } = response
+            const { nextPage, previousPage } = response.resultPagesInformation
 
             if (nextPage.areThereMorePages) {
 
@@ -785,7 +786,7 @@
                 }
                 const url = new URL(source.value)
                 
-                newObj = { ...newObj, hostname: url.hostname }
+                newObj = { ...newObj, hostname: url.hostname.replace('www.', '') }
 
                 const xhr = new XMLHttpRequest()
                 xhr.open('POST', `${BASE_URL}/api/icons/new`)
