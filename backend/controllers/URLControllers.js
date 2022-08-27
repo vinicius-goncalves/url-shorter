@@ -1,5 +1,5 @@
-const SQLUtils = require('../SQLUtils')
-const Utils = require('../Utils.js')
+const SQLUrls = require('../sql/SQLUrls.js')
+const Utils = require('../UtilsGeneric.js')
 
 const url = require('url')
 
@@ -13,7 +13,7 @@ const getAllURLs = async (response) => {
 
     try {
         
-        const allURLs = await SQLUtils.getAll()
+        const allURLs = await SQLUrls.getAll()
         
         response.writeHead(200, headers)
         response.write(JSON.stringify(allURLs, null, 2))
@@ -31,7 +31,7 @@ const getURLByID = async (id, response) => {
 
     try {
         
-        const urlFound = await SQLUtils.getByID(id)
+        const urlFound = await SQLUrls.getByID(id)
 
         if(!urlFound) {
             response.writeHead(404, defaultHeaders)
@@ -55,7 +55,7 @@ const getURLByLastPath = async (id, response) => {
 
     try {
 
-        const urlFound = await SQLUtils.getURLByLastPath(id)
+        const urlFound = await SQLUrls.getURLByLastPath(id)
 
         if(!urlFound) {
             response.writeHead(404, { 'Content-Type': 'application/json' })
@@ -78,79 +78,92 @@ const getURLByLastPath = async (id, response) => {
 const addNewURL = async (request, response) => {
     try {
 
-        const newURLJSON = await Utils.getBufferData(request)
-        const newURLObject = JSON.parse(newURLJSON)
-        
-        const { newURL } = newURLObject
+        const getData = await Utils.getBufferData(request)
+        const dataReceivedObj = JSON.parse(getData)
 
-        const fullURLFound = await SQLUtils.getByFullURL(newURL)
-        if(fullURLFound) {
-            response.writeHead(409, defaultHeaders)
-            response.write(JSON.stringify({ urlCreated: false, message: 'The URL to short already exists.' }))
-            response.end()
-            return
-        }
-        
-        let linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
-        const URLFound = await SQLUtils.getURLByLastPath(linkGenerated)
+        const { type } = dataReceivedObj
 
-        let exit = false
-        while(!exit) {
-            if(URLFound) {
-                linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
-                const newSearchResult = await SQLUtils.getURLByLastPath(linkGenerated)
-                if(!newSearchResult) {
+        switch(type) {
+            case 'icon':
+                
+                response.writeHead(200, defaultHeaders)
+                response.end()
+                break
+            default:
+                
+                const { newURL } = dataReceivedObj
+
+                const fullURLFound = await SQLUrls.getByFullURL(newURL)
+                if(fullURLFound) {
+                    response.writeHead(409, defaultHeaders)
+                    response.write(JSON.stringify({ urlCreated: false, message: 'The URL to short already exists.' }))
+                    response.end()
+                    return
+                }
+                
+                let linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
+                const URLFound = await SQLUrls.getURLByLastPath(linkGenerated)
+
+                let exit = false
+                while(!exit) {
+                    if(URLFound) {
+                        linkGenerated = Utils.randomCharacters(7, 'abcdefgtuvwxyz1234567')
+                        const newSearchResult = await SQLUrls.getURLByLastPath(linkGenerated)
+                        if(!newSearchResult) {
+                            exit = true
+                            return
+                        }
+
+                        exit = false
+                        return
+                    }
                     exit = true
+                }
+
+                const knownWebsites = [
+                    'twitter',
+                    'drive.google',
+                    'google',
+                    'mozilla',
+                    'youtube',
+                    'dribbble',
+                    'github',
+                    'pinterest',
+                    'snapchat',
+                    'twitch',
+                    'whatsapp',
+                    'yahoo',
+                    'spotify',
+                    'reddit',
+                    'soundclound',
+                    'facebook',
+                    'blogger',
+                    'devianart'
+                ]
+
+                const urlDetails = url.parse(newURL)
+
+                const websiteFound = knownWebsites.filter(item => {
+                    if(urlDetails.hostname.includes(item)) {
+                        return item
+                    }
+                })[0]
+
+                if(websiteFound) {
+                    await SQLUrls.addNew(newURL, websiteFound, linkGenerated)
+                    response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+                    response.write(JSON.stringify({ urlCreated: true, id: linkGenerated, message: 'The URL has been created succeffuly!' }))
+                    response.end()
                     return
                 }
 
-                exit = false
-                return
-            }
-            exit = true
+                await SQLUrls.addNew(newURL, 'unknown', linkGenerated)
+
+                response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+                response.write(JSON.stringify({ urlCreated: true, id: linkGenerated, message: 'The URL has been created succeffuly!' }))
+                response.end()
+                break
         }
-
-        const knownWebsites = [
-            'twitter',
-            'google',
-            'mozilla',
-            'youtube',
-            'dribbble',
-            'github',
-            'pinterest',
-            'snapchat',
-            'twitch',
-            'whatsapp',
-            'yahoo',
-            'spotify',
-            'reddit',
-            'soundclound',
-            'facebook',
-            'blogger',
-            'devianart'
-        ]
-
-        const urlDetails = url.parse(newURL)
-
-        const websiteFound = knownWebsites.filter(item => {
-            if(urlDetails.hostname.includes(item)) {
-                return item
-            }
-        })[0]
-
-        if(websiteFound) {
-            await SQLUtils.addNew(newURL, websiteFound, linkGenerated)
-            response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-            response.write(JSON.stringify({ urlCreated: true, id: linkGenerated, message: 'The URL has been created succeffuly!' }))
-            response.end()
-            return
-        }
-
-        await SQLUtils.addNew(newURL, 'unknown', linkGenerated)
-
-        response.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-        response.write(JSON.stringify({ urlCreated: true, id: linkGenerated, message: 'The URL has been created succeffuly!' }))
-        response.end()
 
     } catch (error) {
         console.log(error)
@@ -163,7 +176,7 @@ const addNewURL = async (request, response) => {
 const getURLsByParamsAndBetween = async (urlWithParams, response) => {
     try {
          
-        const maxId = await SQLUtils.getMaxID()
+        const maxId = await SQLUrls.getMaxID()
 
         const params = url.parse(urlWithParams, true).query
         const { ['page']: p, ['limit']: l } = params
@@ -219,7 +232,7 @@ const getURLsByParamsAndBetween = async (urlWithParams, response) => {
 
         const resultPagesInformation = await pagesInformationObject
 
-        const resultSet = await SQLUtils.getBetween((startIndex + 1), endIndex)
+        const resultSet = await SQLUrls.getBetween((startIndex + 1), endIndex)
         Object.defineProperty(resultPagesInformation, 'items', {
             value: resultSet,
             enumerable: true,

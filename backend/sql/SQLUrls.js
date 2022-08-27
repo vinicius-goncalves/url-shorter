@@ -1,17 +1,5 @@
-(() => {
-    const mysql = require('mysql2/promise')
-
-    const options = {
-        host: 'localhost',
-        user: 'root',
-        password: '',
-        port: 3306,
-        database: 'for_studies'
-    }
-
-    const connection = mysql.createConnection(options)
-    global.connection = connection
-})();
+const ConnectionUtils = require('./ConnectionUtils')
+const connection = ConnectionUtils.openConnection('for_studies')
 
 const BASE_URL_TO_LINK = `http://localhost:8080/link`
 

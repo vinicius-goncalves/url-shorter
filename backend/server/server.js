@@ -3,12 +3,17 @@ const urlNode = require('url')
 
 const port = process.env.PORT || 8080
 const URLControllers = require('../controllers/URLControllers')
+const URLIconsControllers = require('../controllers/URLIconsControllers')
 
 const server = http.createServer(async (request, response) => {
     
     const { method, url } = request
     switch(method.toLowerCase()) {
         case 'get':
+
+            /**
+             * URLs
+             */
             if(url.match('/api/urls/search')) {
                 URLControllers.getURLsByParamsAndBetween(url, response)
                 break
@@ -31,9 +36,31 @@ const server = http.createServer(async (request, response) => {
                 break
             }
 
+            /**
+             * Icons
+             */
+
+            if(url === '/api/icons') {
+                URLIconsControllers.getAllIcons(request, response)
+                break
+            }
+
         case 'post':
+
+            /**
+             * URLs
+             */
             if(url === '/api/urls/new') {
                 URLControllers.addNewURL(request, response)
+                break
+            }
+
+            /**
+             * Icons
+             */
+
+            if(url === '/api/icons/new') {
+                URLIconsControllers.addNewIcon(request, response)
                 break
             }
 
@@ -41,7 +68,8 @@ const server = http.createServer(async (request, response) => {
             response.writeHead(200, { 
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Headers': '*',
-                'Access-Control-Allow-Methods': 'GET, POST'
+                'Access-Control-Allow-Methods': 'GET, POST',
+                'Access-Control-Max-Age': 86400
             })
             response.end()
             break

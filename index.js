@@ -1,3 +1,4 @@
-require('./backend/server/server')
+require('./backend/server/Messages')
+require('./backend/server/Server')
 require('dotenv').config()
 
